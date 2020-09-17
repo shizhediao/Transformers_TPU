@@ -133,7 +133,21 @@ def get_dataset(
 ):
     file_path = args.eval_data_file if evaluate else args.train_data_file
     if args.line_by_line:
-        return LineByLineTextDataset(tokenizer=tokenizer, file_path=file_path, block_size=args.block_size)
+        print("entering get_dataset function with line_by_line")
+        import glob
+        files = glob.glob(file_path+'shard_003*')
+        from datasets import load_dataset
+        dataset = load_dataset('text', data_files=files)
+        #(On passing the whole dataset file (11GB) directly to load_dataset was resulting into RAM issue)
+
+        #Tokenization
+        def encode(examples):
+            #return tokenizer(examples['text'], truncation=True, padding='max_length')
+            return tokenizer(examples['text'], add_special_tokens=True, truncation=True, max_length=args.block_size)
+        dataset = dataset.map(encode, batched=True)
+        dataset.set_format(type='torch', columns=['input_ids', 'attention_mask'])
+        return dataset
+        #return LineByLineTextDataset(tokenizer=tokenizer, file_path=file_path, block_size=args.block_size)
     else:
         return TextDataset(
             tokenizer=tokenizer,
